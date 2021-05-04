@@ -1,6 +1,6 @@
 add_library(mavsdk_telemetry
     telemetry.cpp
-    telemetry_impl.cpp
+    telemetry_impl_apm.cpp
     math_conversions.cpp
 )
 
