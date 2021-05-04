@@ -13,7 +13,7 @@ add_library(mavsdk
     connection_result.cpp
     curl_wrapper.cpp
     system.cpp
-    system_impl.cpp
+    system_impl_apm.cpp
     mavsdk.cpp
     mavsdk_impl.cpp
     global_include.cpp

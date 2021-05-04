@@ -2,7 +2,7 @@
 #include "global_include.h"
 #include "mavsdk_impl.h"
 #include "mavlink_include.h"
-#include "system_impl.h"
+#include "system_impl_px4.h"
 #include "plugin_impl_base.h"
 #include "px4_custom_mode.h"
 #include <cstdlib>

@@ -1,6 +1,6 @@
 add_library(mavsdk_action
     action.cpp
-    action_impl.cpp
+    action_impl_apm.cpp
 )
 
 target_link_libraries(mavsdk_action
