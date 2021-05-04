@@ -482,14 +482,11 @@ void SystemImpl::send_autopilot_version_request()
 {
     // We don't care about an answer, we mostly care about receiving AUTOPILOT_VERSION.
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES;
     command.params.param1 = 1.0f;
     command.target_component_id = get_autopilot_id();
-
-    // Ardupilot doesn't support NaNs in these values
-    command.params.param5 = 0.0f;
-    command.params.param6 = 0.0f;
 
     send_command_async(command, nullptr);
 }
@@ -498,6 +495,7 @@ void SystemImpl::send_flight_information_request()
 {
     // We don't care about an answer, we mostly care about receiving FLIGHT_INFORMATION.
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_REQUEST_FLIGHT_INFORMATION;
     command.params.param1 = 1.0f;
@@ -933,6 +931,7 @@ SystemImpl::make_command_flight_mode(FlightMode flight_mode, uint8_t component_i
     }
 
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_DO_SET_MODE;
     command.params.param1 = float(mode);
@@ -1145,6 +1144,7 @@ MavlinkCommandSender::CommandLong
 SystemImpl::make_command_msg_rate(uint16_t message_id, double rate_hz, uint8_t component_id)
 {
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     // 0 to request default rate, -1 to stop stream
 
