@@ -4,7 +4,7 @@
 #include "mavlink_include.h"
 #include "system_impl_apm.h"
 #include "plugin_impl_base.h"
-#include "px4_custom_mode.h"
+#include "apm_custom_mode.h"
 #include <cstdlib>
 #include <functional>
 #include <algorithm>
@@ -879,54 +879,53 @@ SystemImpl::make_command_flight_mode(FlightMode flight_mode, uint8_t component_i
 
     const uint8_t mode = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED | flag_safety_armed | flag_hitl_enabled;
 
-    // Note: the safety flag is not needed in future versions of the PX4 Firmware
-    //       but want to be rather safe than sorry.
-    uint8_t custom_mode = px4::PX4_CUSTOM_MAIN_MODE_AUTO;
-    uint8_t custom_sub_mode = 0;
+    uint8_t custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::GUIDED);
+    ArdupilotMega::SUB_MODE custom_sub_mode = ArdupilotMega::SUB_MODE::STABILIZE;
 
     switch (flight_mode) {
         case FlightMode::Hold:
-            custom_sub_mode = px4::PX4_CUSTOM_SUB_MODE_AUTO_LOITER;
+            custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::ALT_HOLD);
             break;
         case FlightMode::ReturnToLaunch:
-            custom_sub_mode = px4::PX4_CUSTOM_SUB_MODE_AUTO_RTL;
+            custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::RTL);
             break;
         case FlightMode::Takeoff:
-            custom_sub_mode = px4::PX4_CUSTOM_SUB_MODE_AUTO_TAKEOFF;
+            // TO-DO?
             break;
         case FlightMode::Land:
-            custom_sub_mode = px4::PX4_CUSTOM_SUB_MODE_AUTO_LAND;
+            custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::LAND);
             break;
         case FlightMode::Mission:
-            custom_sub_mode = px4::PX4_CUSTOM_SUB_MODE_AUTO_MISSION;
+            custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::AUTO);
             break;
         case FlightMode::FollowMe:
-            custom_sub_mode = px4::PX4_CUSTOM_SUB_MODE_AUTO_FOLLOW_TARGET;
+            custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::FOLLOW);
             break;
         case FlightMode::Offboard:
-            custom_mode = px4::PX4_CUSTOM_MAIN_MODE_OFFBOARD;
+            custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::GUIDED);
             break;
         case FlightMode::Manual:
-            custom_mode = px4::PX4_CUSTOM_MAIN_MODE_MANUAL;
+            // ROVER + PLANE have MANUAL but not COPTER
             break;
         case FlightMode::Posctl:
-            custom_mode = px4::PX4_CUSTOM_MAIN_MODE_POSCTL;
+            // TO-DO
             break;
         case FlightMode::Altctl:
-            custom_mode = px4::PX4_CUSTOM_MAIN_MODE_ALTCTL;
+            // TO-DO
             break;
         case FlightMode::Rattitude:
-            custom_mode = px4::PX4_CUSTOM_MAIN_MODE_RATTITUDE;
+            // TO-DO
             break;
         case FlightMode::Acro:
-            custom_mode = px4::PX4_CUSTOM_MAIN_MODE_ACRO;
+            custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::ACRO);
             break;
         case FlightMode::Stabilized:
-            custom_mode = px4::PX4_CUSTOM_MAIN_MODE_STABILIZED;
+            custom_mode = static_cast<uint8_t>(ArdupilotMega::COPTER_MODE::STABILIZE);
             break;
         default:
             LogErr() << "Unknown Flight mode.";
             MavlinkCommandSender::CommandLong empty_command{};
+            MavlinkCommandSender::CommandLong::set_as_reserved(empty_command.params, 0.0f);
             return std::make_pair<>(MavlinkCommandSender::Result::UnknownError, empty_command);
     }
 
@@ -949,43 +948,28 @@ SystemImpl::FlightMode SystemImpl::get_flight_mode() const
 
 SystemImpl::FlightMode SystemImpl::to_flight_mode_from_custom_mode(uint32_t custom_mode)
 {
-    px4::px4_custom_mode px4_custom_mode;
-    px4_custom_mode.data = custom_mode;
+    ArdupilotMega::COPTER_MODE apm_custom_mode = static_cast<ArdupilotMega::COPTER_MODE>(custom_mode);
 
-    switch (px4_custom_mode.main_mode) {
-        case px4::PX4_CUSTOM_MAIN_MODE_OFFBOARD:
+    switch (apm_custom_mode) {
+        case ArdupilotMega::COPTER_MODE::GUIDED:
             return FlightMode::Offboard;
-        case px4::PX4_CUSTOM_MAIN_MODE_MANUAL:
-            return FlightMode::Manual;
-        case px4::PX4_CUSTOM_MAIN_MODE_POSCTL:
-            return FlightMode::Posctl;
-        case px4::PX4_CUSTOM_MAIN_MODE_ALTCTL:
-            return FlightMode::Altctl;
-        case px4::PX4_CUSTOM_MAIN_MODE_RATTITUDE:
-            return FlightMode::Rattitude;
-        case px4::PX4_CUSTOM_MAIN_MODE_ACRO:
+        case ArdupilotMega::COPTER_MODE::ACRO:
             return FlightMode::Acro;
-        case px4::PX4_CUSTOM_MAIN_MODE_STABILIZED:
+        case ArdupilotMega::COPTER_MODE::STABILIZE:
             return FlightMode::Stabilized;
-        case px4::PX4_CUSTOM_MAIN_MODE_AUTO:
-            switch (px4_custom_mode.sub_mode) {
-                case px4::PX4_CUSTOM_SUB_MODE_AUTO_READY:
-                    return FlightMode::Ready;
-                case px4::PX4_CUSTOM_SUB_MODE_AUTO_TAKEOFF:
-                    return FlightMode::Takeoff;
-                case px4::PX4_CUSTOM_SUB_MODE_AUTO_LOITER:
-                    return FlightMode::Hold;
-                case px4::PX4_CUSTOM_SUB_MODE_AUTO_MISSION:
-                    return FlightMode::Mission;
-                case px4::PX4_CUSTOM_SUB_MODE_AUTO_RTL:
-                    return FlightMode::ReturnToLaunch;
-                case px4::PX4_CUSTOM_SUB_MODE_AUTO_LAND:
-                    return FlightMode::Land;
-                case px4::PX4_CUSTOM_SUB_MODE_AUTO_FOLLOW_TARGET:
-                    return FlightMode::FollowMe;
-                default:
-                    return FlightMode::Unknown;
-            }
+        case ArdupilotMega::COPTER_MODE::AUTO:
+            return FlightMode::Mission;
+        case ArdupilotMega::COPTER_MODE::ALT_HOLD:
+            return FlightMode::Hold;
+        case ArdupilotMega::COPTER_MODE::LOITER:
+            return FlightMode::Hold;
+        case ArdupilotMega::COPTER_MODE::RTL:
+        case ArdupilotMega::COPTER_MODE::SMART_RTL:
+            return FlightMode::ReturnToLaunch;
+        case ArdupilotMega::COPTER_MODE::LAND:
+            return FlightMode::Land;
+        case ArdupilotMega::COPTER_MODE::FOLLOW:
+            return FlightMode::FollowMe;
         default:
             return FlightMode::Unknown;
     }

@@ -217,6 +217,7 @@ void ActionImpl::arm_async(const Action::ResultCallback& callback) const
 {
     auto send_arm_command = [this, callback]() {
         MavlinkCommandSender::CommandLong command{};
+        MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
         command.command = MAV_CMD_COMPONENT_ARM_DISARM;
         command.params.param1 = 1.0f; // arm
@@ -258,6 +259,7 @@ void ActionImpl::disarm_async(const Action::ResultCallback& callback) const
     }
 
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_COMPONENT_ARM_DISARM;
     command.params.param1 = 0.0f; // disarm
@@ -272,6 +274,7 @@ void ActionImpl::disarm_async(const Action::ResultCallback& callback) const
 void ActionImpl::terminate_async(const Action::ResultCallback& callback) const
 {
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_DO_FLIGHTTERMINATION;
     command.params.param1 = 1;
@@ -286,6 +289,7 @@ void ActionImpl::terminate_async(const Action::ResultCallback& callback) const
 void ActionImpl::kill_async(const Action::ResultCallback& callback) const
 {
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_COMPONENT_ARM_DISARM;
     command.params.param1 = 0.0f; // kill
@@ -301,6 +305,7 @@ void ActionImpl::kill_async(const Action::ResultCallback& callback) const
 void ActionImpl::reboot_async(const Action::ResultCallback& callback) const
 {
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN;
     command.params.param1 = 1.0f; // reboot autopilot
@@ -318,6 +323,7 @@ void ActionImpl::reboot_async(const Action::ResultCallback& callback) const
 void ActionImpl::shutdown_async(const Action::ResultCallback& callback) const
 {
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN;
     command.params.param1 = 2.0f; // shutdown autopilot
@@ -335,9 +341,22 @@ void ActionImpl::shutdown_async(const Action::ResultCallback& callback) const
 void ActionImpl::takeoff_async(const Action::ResultCallback& callback) const
 {
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_NAV_TAKEOFF;
     command.target_component_id = _parent->get_autopilot_id();
+
+    _parent->set_flight_mode_async(
+            SystemImpl::FlightMode::Offboard,
+            [callback, send_arm_command](MavlinkCommandSender::Result result, float) {
+                Action::Result action_result = action_result_from_command_result(result);
+                if (action_result != Action::Result::Success) {
+                    if (callback) {
+                        callback(action_result);
+                    }
+                }
+                send_arm_command();
+            });
 
     _parent->send_command_async(
         command, [this, callback](MavlinkCommandSender::Result result, float) {
@@ -348,6 +367,7 @@ void ActionImpl::takeoff_async(const Action::ResultCallback& callback) const
 void ActionImpl::land_async(const Action::ResultCallback& callback) const
 {
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_NAV_LAND;
     command.params.param4 = NAN; // Don't change yaw.
@@ -441,6 +461,7 @@ void ActionImpl::transition_to_fixedwing_async(const Action::ResultCallback& cal
     }
 
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_DO_VTOL_TRANSITION;
     command.params.param1 = float(MAV_VTOL_STATE_FW);
@@ -468,6 +489,7 @@ void ActionImpl::transition_to_multicopter_async(const Action::ResultCallback& c
         return;
     }
     MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
 
     command.command = MAV_CMD_DO_VTOL_TRANSITION;
     command.params.param1 = float(MAV_VTOL_STATE_MC);

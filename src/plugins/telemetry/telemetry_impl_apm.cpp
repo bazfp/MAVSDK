@@ -136,6 +136,17 @@ void TelemetryImpl::init()
             receive_statustext(statustext);
         },
         this);
+
+        // We don't care about an answer, we mostly care about receiving AUTOPILOT_VERSION.
+    MavlinkCommandSender::CommandLong command{};
+    MavlinkCommandSender::CommandLong::set_as_reserved(command.params, 0.0f);
+
+    command.command = MAV_CMD_SET_MESSAGE_INTERVAL;
+    command.params.param1 = MAVLINK_MSG_ID_HOME_POSITION;
+    command.params.param2 = 1000000;
+    command.target_component_id = _parent->get_autopilot_id();
+
+    _parent->send_command_async(command, nullptr);
 }
 
 void TelemetryImpl::deinit()
@@ -188,12 +199,14 @@ void TelemetryImpl::enable()
                             LogErr() << "Error: Param for INS_ACCOFF failed.";
                             return;
                         }
-                        set_health_accelerometer_calibration(value != 0.0f);
+                        set_health_accelerometer_calibration(true);
                     },
                     std::placeholders::_1,
                     std::placeholders::_2),
                 this);
         }
+
+        set_health_magnetometer_calibration(true);
 
 #ifdef LEVEL_CALIBRATION
         _parent->param_float_async(
@@ -1375,6 +1388,7 @@ void TelemetryImpl::receive_param_cal_gyro(MAVLinkParameters::Result result, int
     }
 
     bool ok = (value != 0);
+    LogErr() <<  "Param for gyro cal " << value;
     set_health_gyrometer_calibration(ok);
 }
 
@@ -1696,6 +1710,10 @@ Telemetry::Health TelemetryImpl::health() const
 bool TelemetryImpl::health_all_ok() const
 {
     std::lock_guard<std::mutex> lock(_health_mutex);
+    LogWarn() << "Gyro" << _health.is_gyrometer_calibration_ok << " Accel" << _health.is_accelerometer_calibration_ok
+    << " Mag " << _health.is_magnetometer_calibration_ok << "Level" << _health.is_level_calibration_ok << "isLocal" <<_health.is_local_position_ok <<
+    "isGloabl" << _health.is_global_position_ok << "is home" << _health.is_home_position_ok;
+
     if (_health.is_gyrometer_calibration_ok && _health.is_accelerometer_calibration_ok &&
         _health.is_magnetometer_calibration_ok && _health.is_level_calibration_ok &&
         _health.is_local_position_ok && _health.is_global_position_ok &&
