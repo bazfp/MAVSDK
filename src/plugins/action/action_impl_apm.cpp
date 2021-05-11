@@ -348,20 +348,21 @@ void ActionImpl::takeoff_async(const Action::ResultCallback& callback) const
 
     _parent->set_flight_mode_async(
             SystemImpl::FlightMode::Offboard,
-            [callback, send_arm_command](MavlinkCommandSender::Result result, float) {
+            [this, callback, command](MavlinkCommandSender::Result result, float) {
                 Action::Result action_result = action_result_from_command_result(result);
                 if (action_result != Action::Result::Success) {
                     if (callback) {
                         callback(action_result);
                     }
                 }
-                send_arm_command();
+                else
+                {
+                     _parent->send_command_async(
+                    command, [this, callback](MavlinkCommandSender::Result result, float) {
+                        command_result_callback(result, callback);
+                    });
+                }
             });
-
-    _parent->send_command_async(
-        command, [this, callback](MavlinkCommandSender::Result result, float) {
-            command_result_callback(result, callback);
-        });
 }
 
 void ActionImpl::land_async(const Action::ResultCallback& callback) const
